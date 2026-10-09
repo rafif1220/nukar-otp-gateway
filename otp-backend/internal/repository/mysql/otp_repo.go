@@ -18,7 +18,12 @@ func (r *otpRepository) Create(log *domain.OtpLog) error {
 }
 
 func (r *otpRepository) Update(log *domain.OtpLog) error {
-	return r.db.Save(log).Error
+	// Gunakan map agar GORM HANYA meng-update kolom status dan response,
+	// tanpa menyentuh created_at, to, atau otp_code sama sekali.
+	return r.db.Model(&domain.OtpLog{}).Where("id = ?", log.ID).Updates(map[string]interface{}{
+		"status":   log.Status,
+		"response": log.Response,
+	}).Error
 }
 
 func (r *otpRepository) GetHistory(limit int) ([]domain.OtpLog, error) {

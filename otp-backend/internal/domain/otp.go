@@ -28,7 +28,7 @@ type OtpRepository interface {
 
 // OtpUseCase adalah kontrak untuk business logic (termasuk Goroutine)
 type OtpUseCase interface {
-	SendOtpAsync(phone, otpCode string) (uint, error)
+	SendOtpAsync(channel, to, otpCode string) (uint, error)
 	GetHistory() ([]OtpLog, error)
 	GetMetrics() (Metrics, error)
 }

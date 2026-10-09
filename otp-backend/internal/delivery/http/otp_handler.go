@@ -22,7 +22,8 @@ func (h *OtpHandler) Route(app fiber.Router, authMiddleware fiber.Handler) {
 
 func (h *OtpHandler) SendOtp(c *fiber.Ctx) error {
 	type Request struct {
-		Phone   string `json:"phone"`
+		Channel string `json:"channel"`
+		To      string `json:"to"`
 		OtpCode string `json:"otp_code"`
 	}
 
@@ -32,7 +33,7 @@ func (h *OtpHandler) SendOtp(c *fiber.Ctx) error {
 	}
 
 	// Panggil Usecase
-	logID, err := h.usecase.SendOtpAsync(req.Phone, req.OtpCode)
+	logID, err := h.usecase.SendOtpAsync(req.Channel, req.To, req.OtpCode)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal memproses OTP"})
 	}
