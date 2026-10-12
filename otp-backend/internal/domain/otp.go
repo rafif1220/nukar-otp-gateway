@@ -18,12 +18,25 @@ type Metrics struct {
 	Failed int64 `json:"failed"`
 }
 
+type ChartAggregation struct {
+	Label  string
+	Sent   int
+	Failed int
+}
+
+type ChartResponse struct {
+	Labels []string `json:"labels"`
+	Sent   []int    `json:"sent"`
+	Failed []int    `json:"failed"`
+}
+
 // OtpRepository adalah kontrak untuk interaksi ke Database (PostgreSQL)
 type OtpRepository interface {
 	Create(log *OtpLog) error
 	Update(log *OtpLog) error
 	GetHistory(limit int) ([]OtpLog, error)
 	GetMetrics() (Metrics, error)
+	GetChartData(timeRange string) ([]ChartAggregation, error)
 }
 
 // OtpUseCase adalah kontrak untuk business logic (termasuk Goroutine)
@@ -31,4 +44,6 @@ type OtpUseCase interface {
 	SendOtpAsync(channel, to, otpCode string) (uint, error)
 	GetHistory() ([]OtpLog, error)
 	GetMetrics() (Metrics, error)
+	SendManualMessage(phone, message string) error
+	GetChartData(timeRange string) (ChartResponse, error)
 }

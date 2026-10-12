@@ -18,6 +18,7 @@ func (h *OtpHandler) Route(app fiber.Router, authMiddleware fiber.Handler) {
 	app.Get("/history", h.GetHistory)
 	app.Get("/metrics", h.GetMetrics)
 	app.Post("/send-message", h.SendMessageManual) // Endpoint tambahan untuk dashboard
+	app.Get("/chart-data", h.GetChartData)
 }
 
 func (h *OtpHandler) SendOtp(c *fiber.Ctx) error {
@@ -73,9 +74,26 @@ func (h *OtpHandler) SendMessageManual(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
-	// Logic manual Barantum (disimulasikan sukses untuk saat ini)
+	// Panggil usecase untuk mengirim pesan manual
+	err := h.usecase.SendManualMessage(req.Phone, req.Message)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal mengirim pesan"})
+	}
+
 	return c.JSON(fiber.Map{
 		"status":  "success", 
 		"message": "Pesan berhasil diantrikan ke " + req.Phone,
 	})
+}
+
+func (h *OtpHandler) GetChartData(c *fiber.Ctx) error {
+	// Ambil query parameter ?range=... (default "7d" kalau kosong)
+	timeRange := c.Query("range", "7d") 
+	
+	data, err := h.usecase.GetChartData(timeRange)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal fetch data chart"})
+	}
+	
+	return c.JSON(data)
 }

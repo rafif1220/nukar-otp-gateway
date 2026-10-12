@@ -160,3 +160,62 @@ func (u *otpUseCase) processEmailOtp(logID uint, to string, otpCode string) {
 		log.Println("Gagal update status OTP Email di DB:", err)
 	}
 }
+
+// Goroutine baru khusus untuk kirim pesan manual dari dashboard
+func (u *otpUseCase) SendManualMessage(phone, message string) error {
+	// Jalankan di background agar dashboard SvelteKit tidak loading lama
+	go func(p, m string) {
+		url := os.Getenv("BARANTUM_URL")
+		
+		payload := map[string]interface{}{
+			"company_uuid":  os.Getenv("BARANTUM_COMPANY_UUID"),
+			"template_uuid": os.Getenv("BARANTUM_TEMPLATE_UUID"), // Gunakan template notifikasi umum jika ada
+			"chat_bot_uuid": os.Getenv("BARANTUM_CHAT_BOT_UUID"),
+			"contacts": []map[string]interface{}{
+				{
+					"user_name": "User NUKAR",
+					"number":    p,
+					"variabel": map[string]string{
+						"{{1}}": m, // Isi pesan dinamis dari textarea SvelteKit
+					},
+				},
+			},
+		}
+
+		jsonPayload, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+		req.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		
+		if err == nil {
+			resp.Body.Close()
+		}
+	}(phone, message)
+
+	return nil
+}
+
+func (u *otpUseCase) GetChartData(timeRange string) (domain.ChartResponse, error) {
+	aggs, err := u.repo.GetChartData(timeRange)
+	
+	resp := domain.ChartResponse{
+		Labels: []string{},
+		Sent:   []int{},
+		Failed: []int{},
+	}
+	
+	if err != nil {
+		return resp, err
+	}
+
+	// Pecah data baris menjadi kolom array
+	for _, a := range aggs {
+		resp.Labels = append(resp.Labels, a.Label)
+		resp.Sent = append(resp.Sent, a.Sent)
+		resp.Failed = append(resp.Failed, a.Failed)
+	}
+
+	return resp, nil
+}
