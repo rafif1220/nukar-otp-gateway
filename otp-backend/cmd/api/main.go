@@ -8,13 +8,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/joho/godotenv"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	"github.com/rafif1220/otp-backend/internal/delivery/http"
 	"github.com/rafif1220/otp-backend/internal/domain"
 	"github.com/rafif1220/otp-backend/internal/middleware"
-	mysqlRepo "github.com/rafif1220/otp-backend/internal/repository/mysql"
+	postgresRepo "github.com/rafif1220/otp-backend/internal/repository/postgres"
 	"github.com/rafif1220/otp-backend/internal/usecase"
 )
 
@@ -32,24 +32,24 @@ func main() {
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
+	dbSslMode := os.Getenv("DB_SSLMODE")
 
 	// Rakit format DSN menggunakan fmt.Sprintf
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		dbUser, dbPass, dbHost, dbPort, dbName)
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Jakarta", dbHost, dbUser, dbPass, dbName, dbPort, dbSslMode)
 
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Gagal koneksi ke database MySQL:", err)
+		log.Fatal("Gagal koneksi ke database:", err)
 	}
-	log.Println("Berhasil terkoneksi ke MySQL")
+	log.Println("Berhasil terkoneksi ke database")
 
 	// Auto Migrate DB Schema dari entity Domain
 	db.AutoMigrate(&domain.OtpLog{}, &domain.ApiKey{})
 	
 	// 3. Dependency Injection (Jahit semua layer Clean Architecture)
-	otpRepo := mysqlRepo.NewOtpRepository(db)
-        otpUseCase := usecase.NewOtpUseCase(otpRepo)
-        otpHandler := http.NewOtpHandler(otpUseCase)
+	otpRepo := postgresRepo.NewOtpRepository(db)
+    otpUseCase := usecase.NewOtpUseCase(otpRepo)
+    otpHandler := http.NewOtpHandler(otpUseCase)
 
 	// Inisialisasi Middleware Auth
 	authMiddleware := middleware.RequireBasicAuth(db)
