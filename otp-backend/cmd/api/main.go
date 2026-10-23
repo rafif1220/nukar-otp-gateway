@@ -9,12 +9,16 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
+	// jika menggunakan mysql
+	// "gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
 	"github.com/rafif1220/otp-backend/internal/delivery/http"
 	"github.com/rafif1220/otp-backend/internal/domain"
 	"github.com/rafif1220/otp-backend/internal/middleware"
 	postgresRepo "github.com/rafif1220/otp-backend/internal/repository/postgres"
+	// jika menggunakan mysql
+	// mysqlRepo "github.com/rafif1220/otp-backend/internal/repository/mysql"
 	"github.com/rafif1220/otp-backend/internal/usecase"
 )
 
@@ -32,12 +36,15 @@ func main() {
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbName := os.Getenv("DB_NAME")
-	dbSslMode := os.Getenv("DB_SSLMODE")
+	dbSslMode := os.Getenv("DB_SSLMODE") // hapus baris ini jika menggunakan mysql
 
 	// Rakit format DSN menggunakan fmt.Sprintf
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Jakarta", dbHost, dbUser, dbPass, dbName, dbPort, dbSslMode)
+	// dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+	//	dbUser, dbPass, dbHost, dbPort, dbName)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Gagal koneksi ke database:", err)
 	}
@@ -48,6 +55,7 @@ func main() {
 	
 	// 3. Dependency Injection (Jahit semua layer Clean Architecture)
 	otpRepo := postgresRepo.NewOtpRepository(db)
+	// otpRepo := mysqlRepo.NewOtpRepository(db)
     otpUseCase := usecase.NewOtpUseCase(otpRepo)
     otpHandler := http.NewOtpHandler(otpUseCase)
 
