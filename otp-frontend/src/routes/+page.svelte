@@ -3,7 +3,7 @@
     import Chart from "chart.js/auto";
 
     let metrics = $state({ sent: 0, failed: 0 });
-    let statuses = { wa: true, email: true };
+    let statuses = $state({ wa: true, email: true });
     const apiUrl = "http://localhost:4000/api/settings/engine";
 
     // Variabel untuk Chart.js
@@ -105,15 +105,23 @@
     }
 </script>
 
+<!-- Header & Tombol Refresh -->
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-base-content">Dashboard Overview</h1>
+    <button class="btn btn-primary btn-sm" onclick={() => location.reload()}
+        >Refresh Data</button
+    >
+</div>
+
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
     <!-- Card WhatsApp -->
     <div
-        class="p-6 bg-white rounded-lg shadow-md flex items-center justify-between border-l-4 {statuses.wa
+        class="p-3 bg-white rounded-lg shadow-md flex items-center justify-between border-l-4 {statuses.wa
             ? 'border-green-500'
             : 'border-red-500'}"
     >
         <div>
-            <h2 class="text-lg font-bold text-gray-800">WhatsApp OTP</h2>
+            <h2 class="text-md font-bold text-gray-800">WhatsApp OTP</h2>
             <p class="text-xs text-gray-500">Master Switch Barantum</p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
@@ -121,7 +129,7 @@
                 type="checkbox"
                 class="sr-only peer"
                 checked={statuses.wa}
-                on:change={() => toggleEngine("wa")}
+                onchange={() => toggleEngine("wa")}
             />
             <div
                 class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"
@@ -136,12 +144,12 @@
 
     <!-- Card Email -->
     <div
-        class="p-6 bg-white rounded-lg shadow-md flex items-center justify-between border-l-4 {statuses.email
+        class="p-3 bg-white rounded-lg shadow-md flex items-center justify-between border-l-4 {statuses.email
             ? 'border-green-500'
             : 'border-red-500'}"
     >
         <div>
-            <h2 class="text-lg font-bold text-gray-800">Email OTP</h2>
+            <h2 class="text-md font-bold text-gray-800">Email OTP</h2>
             <p class="text-xs text-gray-500">Master Switch SMTP</p>
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
@@ -149,7 +157,7 @@
                 type="checkbox"
                 class="sr-only peer"
                 checked={statuses.email}
-                on:change={() => toggleEngine("email")}
+                onchange={() => toggleEngine("email")}
             />
             <div
                 class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"
@@ -163,23 +171,12 @@
     </div>
 </div>
 
-<!-- Header & Tombol Refresh -->
-<div class="flex justify-between items-center mb-6">
-    <h1 class="text-3xl font-bold text-base-content">Dashboard Overview</h1>
-    <button class="btn btn-primary btn-sm" onclick={() => location.reload()}
-        >Refresh Data</button
-    >
-</div>
-
 <!-- Card Angka Total (Metrics) -->
 <div class="card bg-base-100 shadow-sm border-2 border-base-300 mb-6">
     <div class="card-body p-0">
-        <div
-            class="stats stats-vertical lg:stats-horizontal w-full bg-transparent"
-        >
-            <div
-                class="stat border-b lg:border-b-0 lg:border-r border-base-300"
-            >
+        <div class="stats stats-vertical lg:stats-horizontal w-full bg-transparent">
+            
+            <div class="stat border-b lg:border-b-0 lg:border-r border-base-300">
                 <div class="stat-figure text-success">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
