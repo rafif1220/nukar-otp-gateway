@@ -51,13 +51,32 @@ func main() {
 	log.Println("Berhasil terkoneksi ke database")
 
 	// Auto Migrate DB Schema dari entity Domain
-	db.AutoMigrate(&domain.OtpLog{}, &domain.ApiKey{})
+	db.AutoMigrate(&domain.OtpLog{}, &domain.ApiKey{}, &domain.Setting{})
+
+	// Seeder: Pastikan baris data untuk WA dan Email selalu ada
+	var countWa int64
+	db.Model(&domain.Setting{}).Where("key = ?", "engine_wa_active").Count(&countWa)
+	if countWa == 0 {
+		db.Create(&domain.Setting{Key: "engine_wa_active", Value: true})
+	}
+
+	var countEmail int64
+	db.Model(&domain.Setting{}).Where("key = ?", "engine_email_active").Count(&countEmail)
+	if countEmail == 0 {
+		db.Create(&domain.Setting{Key: "engine_email_active", Value: true})
+	}
 	
 	// 3. Dependency Injection (Jahit semua layer Clean Architecture)
 	otpRepo := postgresRepo.NewOtpRepository(db)
 	// otpRepo := mysqlRepo.NewOtpRepository(db)
     otpUseCase := usecase.NewOtpUseCase(otpRepo)
-    otpHandler := http.NewOtpHandler(otpUseCase)
+
+	// Inisialisasi layer Setting baru
+	settingRepo := postgresRepo.NewSettingRepository(db)
+	settingUseCase := usecase.NewSettingUseCase(settingRepo)
+
+	// Masukkan kedua usecase ke dalam Handler
+    otpHandler := http.NewOtpHandler(otpUseCase, settingUseCase)
 
 	// Inisialisasi Middleware Auth
 	authMiddleware := middleware.RequireBasicAuth(db)

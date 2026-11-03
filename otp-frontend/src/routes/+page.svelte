@@ -1,21 +1,29 @@
 <script>
-    import { onMount } from 'svelte';
-    import Chart from 'chart.js/auto';
+    import { onMount } from "svelte";
+    import Chart from "chart.js/auto";
 
-    let metrics = $state({ sent: 0, failed: 0 }); 
-    
+    let metrics = $state({ sent: 0, failed: 0 });
+    let statuses = { wa: true, email: true };
+    const apiUrl = "http://localhost:4000/api/settings/engine";
+
     // Variabel untuk Chart.js
     let chartCanvas;
     let chartInstance;
-    let selectedRange = $state('7d'); // Default ke 7 Hari Terakhir
+    let selectedRange = $state("7d"); // Default ke 7 Hari Terakhir
 
     // Fungsi fetch metrics (angka total) dari Golang
     onMount(async () => {
         try {
-            const res = await fetch('http://localhost:4000/api/metrics');
-            metrics = await res.json();
+            // Ambil Metrics
+            const resMetrics = await fetch("http://localhost:4000/api/metrics");
+            metrics = await resMetrics.json();
+
+            // Ambil Status Saklar
+            const resStatus = await fetch(apiUrl);
+            const dataStatus = await resStatus.json();
+            statuses = { wa: dataStatus.wa, email: dataStatus.email };
         } catch (error) {
-            console.error("Gagal load metrics:", error);
+            console.error("Gagal load data:", error);
         }
     });
 
@@ -33,79 +41,188 @@
 
         try {
             // Tembak API Golang dengan parameter range
-            const res = await fetch(`http://localhost:4000/api/chart-data?range=${range}`);
+            const res = await fetch(
+                `http://localhost:4000/api/chart-data?range=${range}`,
+            );
             const realData = await res.json();
 
             chartInstance = new Chart(chartCanvas, {
-                type: 'line',
+                type: "line",
                 data: {
                     labels: realData.labels, // Data label dari Golang
                     datasets: [
                         {
-                            label: 'Sukses Terkirim (SENT)',
+                            label: "Sukses Terkirim (SENT)",
                             data: realData.sent, // Data sent dari Golang
-                            borderColor: '#36D399',
-                            backgroundColor: 'rgba(54, 211, 153, 0.1)',
+                            borderColor: "#36D399",
+                            backgroundColor: "rgba(54, 211, 153, 0.1)",
                             borderWidth: 3,
                             tension: 0.4,
                             fill: true,
-                            pointRadius: 4
+                            pointRadius: 4,
                         },
                         {
-                            label: 'Gagal (FAILED)',
+                            label: "Gagal (FAILED)",
                             data: realData.failed, // Data failed dari Golang
-                            borderColor: '#F87272',
-                            backgroundColor: 'rgba(248, 114, 114, 0.1)',
+                            borderColor: "#F87272",
+                            backgroundColor: "rgba(248, 114, 114, 0.1)",
                             borderWidth: 2,
                             tension: 0.4,
                             fill: true,
-                            pointRadius: 3
-                        }
-                    ]
+                            pointRadius: 3,
+                        },
+                    ],
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: { legend: { position: 'top' } },
+                    interaction: { mode: "index", intersect: false },
+                    plugins: { legend: { position: "top" } },
                     scales: {
                         y: { beginAtZero: true, grid: { borderDash: [5, 5] } },
-                        x: { grid: { display: false } }
-                    }
-                }
+                        x: { grid: { display: false } },
+                    },
+                },
             });
         } catch (error) {
             console.error("Gagal render chart dengan data asli:", error);
         }
     }
+
+    async function toggleEngine(channel) {
+        const newState = !statuses[channel];
+        const res = await fetch(apiUrl, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ channel: channel, active: newState }),
+        });
+
+        if (res.ok) {
+            statuses[channel] = newState;
+        } else {
+            alert(`Gagal mengubah status engine ${channel}!`);
+        }
+    }
 </script>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <!-- Card WhatsApp -->
+    <div
+        class="p-6 bg-white rounded-lg shadow-md flex items-center justify-between border-l-4 {statuses.wa
+            ? 'border-green-500'
+            : 'border-red-500'}"
+    >
+        <div>
+            <h2 class="text-lg font-bold text-gray-800">WhatsApp OTP</h2>
+            <p class="text-xs text-gray-500">Master Switch Barantum</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+            <input
+                type="checkbox"
+                class="sr-only peer"
+                checked={statuses.wa}
+                on:change={() => toggleEngine("wa")}
+            />
+            <div
+                class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"
+            ></div>
+            <span
+                class="ml-3 font-bold text-sm {statuses.wa
+                    ? 'text-green-600'
+                    : 'text-red-600'}">{statuses.wa ? "ON" : "OFF"}</span
+            >
+        </label>
+    </div>
+
+    <!-- Card Email -->
+    <div
+        class="p-6 bg-white rounded-lg shadow-md flex items-center justify-between border-l-4 {statuses.email
+            ? 'border-green-500'
+            : 'border-red-500'}"
+    >
+        <div>
+            <h2 class="text-lg font-bold text-gray-800">Email OTP</h2>
+            <p class="text-xs text-gray-500">Master Switch SMTP</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+            <input
+                type="checkbox"
+                class="sr-only peer"
+                checked={statuses.email}
+                on:change={() => toggleEngine("email")}
+            />
+            <div
+                class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"
+            ></div>
+            <span
+                class="ml-3 font-bold text-sm {statuses.email
+                    ? 'text-green-600'
+                    : 'text-red-600'}">{statuses.email ? "ON" : "OFF"}</span
+            >
+        </label>
+    </div>
+</div>
 
 <!-- Header & Tombol Refresh -->
 <div class="flex justify-between items-center mb-6">
     <h1 class="text-3xl font-bold text-base-content">Dashboard Overview</h1>
-    <button class="btn btn-primary btn-sm" onclick={() => location.reload()}>Refresh Data</button>
+    <button class="btn btn-primary btn-sm" onclick={() => location.reload()}
+        >Refresh Data</button
+    >
 </div>
 
 <!-- Card Angka Total (Metrics) -->
 <div class="card bg-base-100 shadow-sm border-2 border-base-300 mb-6">
     <div class="card-body p-0">
-        <div class="stats stats-vertical lg:stats-horizontal w-full bg-transparent">
-            <div class="stat border-b lg:border-b-0 lg:border-r border-base-300">
+        <div
+            class="stats stats-vertical lg:stats-horizontal w-full bg-transparent"
+        >
+            <div
+                class="stat border-b lg:border-b-0 lg:border-r border-base-300"
+            >
                 <div class="stat-figure text-success">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        class="inline-block w-8 h-8 stroke-current"
+                        ><path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        ></path></svg
+                    >
                 </div>
-                <div class="stat-title font-semibold text-base-content/70">Total OTP Terkirim</div>
+                <div class="stat-title font-semibold text-base-content/70">
+                    Total OTP Terkirim
+                </div>
                 <div class="stat-value text-success">{metrics.sent}</div>
                 <div class="stat-desc font-medium">WhatsApp & Email</div>
             </div>
-            
+
             <div class="stat">
                 <div class="stat-figure text-error">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        class="inline-block w-8 h-8 stroke-current"
+                        ><path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        ></path></svg
+                    >
                 </div>
-                <div class="stat-title font-semibold text-base-content/70">Total Gagal</div>
+                <div class="stat-title font-semibold text-base-content/70">
+                    Total Gagal
+                </div>
                 <div class="stat-value text-error">{metrics.failed}</div>
-                <div class="stat-desc text-error font-bold">Butuh eskalasi jika tinggi</div>
+                <div class="stat-desc text-error font-bold">
+                    Butuh eskalasi jika tinggi
+                </div>
             </div>
         </div>
     </div>
@@ -115,11 +232,18 @@
 <div class="card bg-base-100 shadow-sm border-2 border-base-300">
     <div class="card-body p-4 sm:p-6">
         <!-- Header Grafik & Dropdown Filter -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-            <h2 class="text-xl font-bold text-base-content">Tren Pengiriman OTP</h2>
-            
+        <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4"
+        >
+            <h2 class="text-xl font-bold text-base-content">
+                Tren Pengiriman OTP
+            </h2>
+
             <!-- Dropdown Filter Waktu -->
-            <select bind:value={selectedRange} class="select select-bordered select-sm w-full sm:w-[120px] font-medium">
+            <select
+                bind:value={selectedRange}
+                class="select select-bordered select-sm w-full sm:w-[120px] font-medium"
+            >
                 <option value="today">Hari Ini</option>
                 <option value="7d">7 Hari Terakhir</option>
                 <option value="1m">1 Bulan Terakhir</option>

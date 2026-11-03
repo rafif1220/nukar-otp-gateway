@@ -7,10 +7,14 @@ import (
 
 type OtpHandler struct {
 	usecase domain.OtpUseCase
+	settingUseCase domain.SettingUseCase
 }
 
-func NewOtpHandler(u domain.OtpUseCase) *OtpHandler {
-	return &OtpHandler{usecase: u}
+func NewOtpHandler(u domain.OtpUseCase, s domain.SettingUseCase) *OtpHandler {
+	return &OtpHandler{
+		usecase:        u,
+		settingUseCase: s,
+	}
 }
 
 func (h *OtpHandler) Route(app fiber.Router, authMiddleware fiber.Handler) {
@@ -19,6 +23,10 @@ func (h *OtpHandler) Route(app fiber.Router, authMiddleware fiber.Handler) {
 	app.Get("/metrics", h.GetMetrics)
 	app.Post("/send-message", h.SendMessageManual) // Endpoint tambahan untuk dashboard
 	app.Get("/chart-data", h.GetChartData)
+
+	// Endpoint tambahan untuk kontrol saklar dari Svelte Dashboard
+	app.Get("/settings/engine", h.GetEngineStatus)
+	app.Put("/settings/engine", h.UpdateEngineStatus)
 }
 
 func (h *OtpHandler) SendOtp(c *fiber.Ctx) error {
@@ -28,9 +36,24 @@ func (h *OtpHandler) SendOtp(c *fiber.Ctx) error {
 		OtpCode string `json:"otp_code"`
 	}
 
+	// 1. Parse body request DULU untuk mengetahui channel-nya
 	var req Request
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Format request tidak valid"})
+	}
+
+	targetChannel := req.Channel
+	if targetChannel == "" {
+		targetChannel = "wa" // Default fallback
+	}
+
+	// 2. Cek Saklar berdasarkan channel
+	isActive, err := h.settingUseCase.GetChannelStatus(targetChannel)
+	if err == nil && !isActive {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error":   "OTP_ENGINE_DISABLED",
+			"message": "Sistem OTP untuk jalur " + targetChannel + " sedang dimatikan",
+		})
 	}
 
 	// Panggil Usecase
@@ -44,6 +67,37 @@ func (h *OtpHandler) SendOtp(c *fiber.Ctx) error {
 		"status":  "success",
 		"message": "Permintaan OTP diterima dan sedang diproses",
 		"log_id":  logID,
+	})
+}
+
+func (h *OtpHandler) GetEngineStatus(c *fiber.Ctx) error {
+	statuses, err := h.settingUseCase.GetAllStatuses()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal membaca status engine"})
+	}
+	// Mengembalikan object JSON: {"wa_active": true, "email_active": true}
+	return c.JSON(statuses) 
+}
+
+func (h *OtpHandler) UpdateEngineStatus(c *fiber.Ctx) error {
+	type Req struct {
+		Channel string `json:"channel"` // isinya "wa" atau "email"
+		Active  bool   `json:"active"`
+	}
+	var req Req
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	err := h.settingUseCase.UpdateChannelStatus(req.Channel, req.Active)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Gagal update status engine"})
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"channel": req.Channel,
+		"active":  req.Active,
 	})
 }
 
